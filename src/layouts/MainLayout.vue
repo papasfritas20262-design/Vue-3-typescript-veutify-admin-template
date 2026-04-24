@@ -274,7 +274,7 @@ const newOrdersCount = computed(() => {
 const menuItems: MenuItem[] = [
   { title: 'Dashboard', icon: 'mdi-view-dashboard', to: '/' },
   { title: 'Pedidos', icon: 'mdi-receipt-text', to: '/pedidos', badge: newOrdersCount },
-  // { title: 'Clientes', icon: 'mdi-account-multiple', to: '/customers' },
+  { title: 'Clientes', icon: 'mdi-account-multiple', to: '/clientes' },
   { title: 'Productos', icon: 'mdi-cupcake', to: '/productos' },
   { title: 'Categorías', icon: 'mdi-tag-multiple', to: '/categorias' },
   // { title: 'Despachos', icon: 'mdi-truck-delivery', to: '/shipments' },

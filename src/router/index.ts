@@ -21,6 +21,12 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: 'Gestion de Pedidos', requiresAuth: true },
   },
   {
+    path: '/clientes',
+    name: 'Clientes',
+    component: () => import('@/views/CustomersView.vue'),
+    meta: { title: 'Gestion de Clientes', requiresAuth: true },
+  },
+  {
     path: '/productos',
     name: 'Productos',
     component: () => import('@/views/ProductsView.vue'),

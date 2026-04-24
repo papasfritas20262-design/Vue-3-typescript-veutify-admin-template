@@ -6,6 +6,7 @@ export type OrderStatus =
   | 'Cancelado'
 
 export interface Cliente {
+  id?: string
   nombre: string
   apellido: string
   telefono: string
@@ -30,6 +31,7 @@ export interface Order {
   id: string
   estado: OrderStatus
   fecha: any
+  clienteId?: string
   cliente: Cliente
   metodoEntrega: string
   productos: Producto[]
