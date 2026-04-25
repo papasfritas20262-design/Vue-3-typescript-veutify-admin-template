@@ -15,7 +15,7 @@
         </template>
 
         <v-list-item-title class="text-h6 font-weight-bold">
-          Administrador
+          FullMarket Admin
         </v-list-item-title>
  
       </v-list-item>
@@ -296,7 +296,7 @@ watch(notificationsOpen, (open) => {
 })
 
 const currentTitle = computed(() => {
-  return menuItems.find(i => i.to === route.path)?.title || 'Cupcake Mania'
+  return menuItems.find(i => i.to === route.path)?.title || 'FullMarket'
 })
 
 const currentDate = computed(() =>
