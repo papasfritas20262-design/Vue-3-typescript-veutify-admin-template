@@ -54,16 +54,176 @@
                 </v-btn>
               </v-btn-toggle>
             </v-col>
+            <v-col cols="12" class="d-flex justify-end pt-0 px-3 pb-2">
+              <v-btn-toggle
+                v-model="viewMode"
+                mandatory
+                density="comfortable"
+                variant="outlined"
+                color="primary"
+                @update:modelValue="persistViewMode"
+              >
+                <v-btn value="table" class="text-none">
+                  <v-icon start size="18">mdi-table</v-icon>
+                  Tabla
+                </v-btn>
+                <v-btn value="cards" class="text-none">
+                  <v-icon start size="18">mdi-view-grid</v-icon>
+                  Tarjetas
+                </v-btn>
+              </v-btn-toggle>
+            </v-col>
           </v-row>
         </v-card>
       </v-col>
     </v-row>
 
     <v-row v-if="orderStore.loading">
-      <v-col v-for="n in 4" :key="n" cols="12" sm="6" md="4" lg="3">
+      <v-col v-for="n in 4" :key="n" :cols="12" :sm="viewMode === 'cards' ? 6 : 12" :md="viewMode === 'cards' ? 4 : 12" :lg="viewMode === 'cards' ? 3 : 12">
         <v-skeleton-loader type="article, actions" elevation="2" class="rounded-lg"/>
       </v-col>
     </v-row>
+
+    <div v-else-if="viewMode === 'table'">
+      <v-card flat class="bg-white rounded-lg border overflow-hidden">
+        <v-data-table
+          v-model:page="tablePage"
+          v-model:items-per-page="tableItemsPerPage"
+          v-model:sort-by="tableSortBy"
+          :headers="tableHeaders"
+          :items="filteredOrders"
+          item-value="id"
+          class="orders-table"
+          hover
+          :items-per-page-options="tableItemsPerPageOptions"
+          @click:row="handleTableRowClick"
+        >
+          <template #item.id="{ item }">
+            <div class="font-weight-bold text-grey-darken-3">#{{ formatId(item.id) }}</div>
+            <div class="text-caption text-grey">{{ item.productos.length }} producto(s)</div>
+          </template>
+
+          <template #item.fecha="{ item }">
+            <div class="text-body-2">{{ formatDate(item.fecha) }}</div>
+          </template>
+
+          <template #item.cliente="{ item }">
+            <div class="font-weight-medium">{{ item.cliente.nombre }} {{ item.cliente.apellido }}</div>
+            <div class="text-caption text-grey-darken-1">{{ item.cliente.telefono }}</div>
+          </template>
+
+          <template #item.metodoEntrega="{ item }">
+            <div class="d-flex align-center gap-2">
+              <v-icon
+                :icon="item.metodoEntrega === 'recogida' ? 'mdi-store-marker' : 'mdi-moped'"
+                size="18"
+                :color="item.metodoEntrega === 'recogida' ? 'orange-darken-2' : 'blue-darken-2'"
+              />
+              <span class="text-body-2">
+                {{ item.metodoEntrega === 'recogida' ? 'Recoge en Tienda' : 'Domicilio' }}
+              </span>
+            </div>
+          </template>
+
+          <template #item.estado="{ item }">
+            <v-chip
+              :color="STATUS_CONFIG[item.estado]?.color"
+              size="small"
+              variant="flat"
+              class="font-weight-bold"
+            >
+              {{ item.estado }}
+            </v-chip>
+          </template>
+
+          <template #item.totalOrder="{ item }">
+            <div class="text-right">
+              <div class="font-weight-bold">{{ formatCurrency(item.resumen.total) }}</div>
+              <div v-if="item.resumen.envio > 0" class="text-caption text-grey">
+                Envío: {{ formatCurrency(item.resumen.envio) }}
+              </div>
+            </div>
+          </template>
+
+          <template #item.actions="{ item }">
+            <div class="d-inline-flex align-center justify-end gap-2 flex-wrap">
+              <v-btn
+                icon="mdi-eye-outline"
+                size="small"
+                variant="text"
+                color="primary"
+                @click.stop="openDetails(item)"
+              />
+              <v-btn
+                v-if="getNextStatus(item)"
+                :color="STATUS_CONFIG[getNextStatus(item) || '']?.color"
+                variant="flat"
+                size="small"
+                class="text-none"
+                :loading="updatingId === item.id"
+                @click.stop="advanceOrder(item)"
+              >
+                {{ getNextActionLabel(item) }}
+              </v-btn>
+              <v-btn
+                v-else
+                variant="tonal"
+                color="grey"
+                size="small"
+                class="text-none"
+                disabled
+              >
+                Finalizado
+              </v-btn>
+            </div>
+          </template>
+
+          <template #bottom>
+            <div class="d-flex flex-column flex-md-row align-md-center justify-space-between px-4 py-3 gap-2 border-top">
+              <div class="text-caption text-grey-darken-1">
+                {{ tableSummary }}
+              </div>
+              <div class="d-flex align-center gap-3">
+                <div class="d-flex align-center gap-2">
+                  <span class="text-caption text-grey-darken-1">Filas por página</span>
+                  <v-select
+                    v-model="tableItemsPerPage"
+                    :items="tableItemsPerPageOptions"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    style="max-width: 92px;"
+                  />
+                </div>
+                <v-pagination
+                  v-model="tablePage"
+                  :length="tablePageCount"
+                  density="comfortable"
+                  rounded="circle"
+                  total-visible="5"
+                />
+              </div>
+            </div>
+          </template>
+
+          <template #no-data>
+            <div class="text-center py-10">
+              <v-icon size="56" color="grey-lighten-2" class="mb-2">mdi-clipboard-text-search-outline</v-icon>
+              <div class="text-subtitle-1 text-grey-darken-1">{{ emptyStateMessage }}</div>
+              <v-btn
+                v-if="selectedStatuses.length > 0"
+                variant="text"
+                color="primary"
+                class="mt-2 text-none"
+                @click="clearStatusFilter"
+              >
+                Limpiar filtros
+              </v-btn>
+            </div>
+          </template>
+        </v-data-table>
+      </v-card>
+    </div>
 
     <v-row v-else>
       <v-col 
@@ -182,15 +342,15 @@
             </div>
 
             <v-btn
-              v-if="getNextStatus(order.estado)"
+              v-if="getNextStatus(order)"
               block
-              :color="STATUS_CONFIG[getNextStatus(order.estado) || '']?.color"
+              :color="STATUS_CONFIG[getNextStatus(order) || '']?.color"
               variant="flat"
               :loading="updatingId === order.id"
               class="text-none font-weight-bold letter-spacing-normal"
               @click.stop="advanceOrder(order)"
             >
-              {{ getNextActionLabel(order.estado) }}
+              {{ getNextActionLabel(order) }}
               <v-icon end size="small">mdi-arrow-right</v-icon>
             </v-btn>
 
@@ -327,7 +487,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useOrderStore } from '@/stores/useOrderStore'
 
 // --- 0. TIPOS ---
@@ -363,6 +523,11 @@ interface Order {
   resumen: Resumen
 }
 
+interface SortItem {
+  key: string
+  order?: 'asc' | 'desc'
+}
+
 // --- 1. CONFIGURACIÓN Y CONSTANTES ---
 const STATUSES = {
   RECIBIDO: 'Recibido',
@@ -381,18 +546,54 @@ const STATUS_CONFIG: Record<string, { color: string, next?: string }> = {
 }
 
 const STATUS_OPTIONS = Object.values(STATUSES)
+const VIEW_MODE_STORAGE_KEY = 'admin-orders-view-mode'
+const TABLE_PAGE_STORAGE_KEY = 'admin-orders-table-page'
+const TABLE_ITEMS_PER_PAGE_STORAGE_KEY = 'admin-orders-table-items-per-page'
+const TABLE_SORT_STORAGE_KEY = 'admin-orders-table-sort'
 
 // --- 2. ESTADO Y STORE ---
 const orderStore = useOrderStore()
 
 const search = ref('')
 const selectedStatuses = ref<string[]>([]) // vacío = todos
+const viewMode = ref<'table' | 'cards'>('table')
+const tablePage = ref(1)
+const tableItemsPerPage = ref(10)
+const tableItemsPerPageOptions = [5, 10, 20, 50]
+const tableSortBy = ref<SortItem[]>([{ key: 'fecha', order: 'desc' }])
 const updatingId = ref<string | null>(null)
 const detailsDialog = ref(false)
 const selectedOrder = ref<Order | null>(null)
 
 // --- 3. CICLO DE VIDA ---
 onMounted(() => {
+  const savedViewMode = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+  if (savedViewMode === 'table' || savedViewMode === 'cards') {
+    viewMode.value = savedViewMode
+  }
+
+  const savedPage = Number(window.localStorage.getItem(TABLE_PAGE_STORAGE_KEY))
+  if (Number.isFinite(savedPage) && savedPage > 0) {
+    tablePage.value = savedPage
+  }
+
+  const savedItemsPerPage = Number(window.localStorage.getItem(TABLE_ITEMS_PER_PAGE_STORAGE_KEY))
+  if (tableItemsPerPageOptions.includes(savedItemsPerPage)) {
+    tableItemsPerPage.value = savedItemsPerPage
+  }
+
+  const savedSort = window.localStorage.getItem(TABLE_SORT_STORAGE_KEY)
+  if (savedSort) {
+    try {
+      const parsed = JSON.parse(savedSort)
+      if (Array.isArray(parsed)) {
+        tableSortBy.value = parsed
+      }
+    } catch (error) {
+      console.warn('No se pudo restaurar el orden de la tabla de pedidos.', error)
+    }
+  }
+
   orderStore.fetchOrders()
 })
 
@@ -416,6 +617,33 @@ const filteredOrders = computed(() => {
   })
 })
 
+const tableHeaders = [
+  { title: 'Pedido', key: 'id', sortable: true },
+  { title: 'Fecha', key: 'fecha', sortable: true },
+  { title: 'Cliente', key: 'cliente', sortable: true, sort: (a: Order, b: Order) => {
+    const aName = `${a.cliente.nombre} ${a.cliente.apellido}`.toLowerCase()
+    const bName = `${b.cliente.nombre} ${b.cliente.apellido}`.toLowerCase()
+    return aName.localeCompare(bName)
+  } },
+  { title: 'Entrega', key: 'metodoEntrega', sortable: true },
+  { title: 'Estado', key: 'estado', sortable: true },
+  { title: 'Total', key: 'totalOrder', sortable: true, sort: (a: Order, b: Order) => a.resumen.total - b.resumen.total, align: 'end' as const },
+  { title: 'Acciones', key: 'actions', sortable: false, align: 'end' as const }
+]
+
+const tablePageCount = computed(() => {
+  if (!filteredOrders.value.length) return 1
+  return Math.max(1, Math.ceil(filteredOrders.value.length / tableItemsPerPage.value))
+})
+
+const tableSummary = computed(() => {
+  if (!filteredOrders.value.length) return 'Sin pedidos para mostrar'
+
+  const start = (tablePage.value - 1) * tableItemsPerPage.value + 1
+  const end = Math.min(tablePage.value * tableItemsPerPage.value, filteredOrders.value.length)
+  return `Mostrando ${start}-${end} de ${filteredOrders.value.length} pedidos`
+})
+
 const emptyStateMessage = computed(() => {
   if (selectedStatuses.value.length > 0 || search.value.trim()) {
     return 'No hay pedidos que coincidan con los filtros actuales'
@@ -424,15 +652,27 @@ const emptyStateMessage = computed(() => {
 })
 
 // --- 5. HELPERS DE FORMATO ---
-const getNextStatus = (currentStatus: string) => STATUS_CONFIG[currentStatus]?.next
+const getNextStatus = (order: Order) => {
+  if (order.metodoEntrega === 'recogida') {
+    return order.estado === STATUSES.ENTREGADO || order.estado === STATUSES.CANCELADO
+      ? undefined
+      : STATUSES.ENTREGADO
+  }
 
-const getNextActionLabel = (currentStatus: string) => {
+  return STATUS_CONFIG[order.estado]?.next
+}
+
+const getNextActionLabel = (order: Order) => {
+  if (order.metodoEntrega === 'recogida') {
+    return 'Marcar Entregado'
+  }
+
   const labels: Record<string, string> = {
     'Recibido': 'Iniciar Preparación',
     'Preparando': 'Despachar a Ruta',
     'En Camino': 'Confirmar Entrega'
   }
-  return labels[currentStatus] || 'Avanzar Estado'
+  return labels[order.estado] || 'Avanzar Estado'
 }
 
 const formatCurrency = (value: number) => {
@@ -490,7 +730,7 @@ const formatDate = (timestamp: any) => {
 
 // --- 6. ACCIONES ---
 const advanceOrder = async (order: Order) => {
-  const nextStatus = getNextStatus(order.estado)
+  const nextStatus = getNextStatus(order)
   if (!nextStatus) return
 
   updatingId.value = order.id
@@ -518,6 +758,40 @@ const cancelOrder = async (order: Order) => {
 const clearStatusFilter = () => {
   selectedStatuses.value = []
 }
+
+const persistViewMode = (mode: 'table' | 'cards') => {
+  viewMode.value = mode
+  window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
+}
+
+const handleTableRowClick = (_event: Event, row: { item: Order }) => {
+  openDetails(row.item)
+}
+
+watch([search, selectedStatuses], () => {
+  tablePage.value = 1
+}, { deep: true })
+
+watch(filteredOrders, () => {
+  if (tablePage.value > tablePageCount.value) {
+    tablePage.value = tablePageCount.value
+  }
+})
+
+watch(tablePage, (value) => {
+  window.localStorage.setItem(TABLE_PAGE_STORAGE_KEY, String(value))
+})
+
+watch(tableItemsPerPage, (value) => {
+  window.localStorage.setItem(TABLE_ITEMS_PER_PAGE_STORAGE_KEY, String(value))
+  if (tablePage.value > tablePageCount.value) {
+    tablePage.value = tablePageCount.value
+  }
+})
+
+watch(tableSortBy, (value) => {
+  window.localStorage.setItem(TABLE_SORT_STORAGE_KEY, JSON.stringify(value))
+}, { deep: true })
 </script>
 
 <style scoped>
@@ -541,4 +815,22 @@ const clearStatusFilter = () => {
 .border-dashed { border-style: dashed !important; border-color: rgba(0,0,0,0.1); }
 .font-mono { font-family: 'Roboto Mono', monospace; }
 .letter-spacing-normal { letter-spacing: normal; }
+.table-scroll { overflow-x: auto; }
+.orders-table :deep(thead th) {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.58);
+  background: rgb(250, 250, 250);
+  white-space: nowrap;
+}
+.orders-table :deep(tbody tr:hover) {
+  background: rgba(var(--v-theme-primary), 0.03);
+}
+.orders-table :deep(td) {
+  vertical-align: middle;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
 </style>
