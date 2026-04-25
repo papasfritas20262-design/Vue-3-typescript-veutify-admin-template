@@ -6,18 +6,17 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore'
+import { generateUniqueCustomerPkey, normalizeEmail, normalizePhone } from '@/utils/customer'
 
 type CustomerPayload = Omit<
   Customer,
   'id' | 'createdAt' | 'updatedAt' | 'lastOrderAt' | 'lastOrderId' | 'correoNormalizado' | 'telefonoNormalizado'
 >
-
-const normalizeEmail = (value: string) => value.trim().toLowerCase()
-const normalizePhone = (value: string) => value.replace(/\D/g, '')
 
 export const useCustomerStore = defineStore('customer', {
   state: () => ({
@@ -54,6 +53,7 @@ export const useCustomerStore = defineStore('customer', {
       try {
         const normalizedPayload = {
           ...payload,
+          pkey: payload.pkey || await generateUniqueCustomerPkey(db),
           correoNormalizado: normalizeEmail(payload.correo),
           telefonoNormalizado: normalizePhone(payload.telefono),
         }
@@ -84,6 +84,14 @@ export const useCustomerStore = defineStore('customer', {
 
         if (typeof payload.telefono === 'string') {
           nextPayload.telefonoNormalizado = normalizePhone(payload.telefono)
+        }
+
+        if (!('pkey' in nextPayload)) {
+          const snapshot = await getDoc(doc(db, 'clientes', id))
+          const current = snapshot.data() as Partial<Customer> | undefined
+          if (!current?.pkey) {
+            nextPayload.pkey = await generateUniqueCustomerPkey(db)
+          }
         }
 
         await updateDoc(doc(db, 'clientes', id), nextPayload)

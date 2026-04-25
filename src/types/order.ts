@@ -7,6 +7,7 @@ export type OrderStatus =
 
 export interface Cliente {
   id?: string
+  pkey?: string
   nombre: string
   apellido: string
   telefono: string

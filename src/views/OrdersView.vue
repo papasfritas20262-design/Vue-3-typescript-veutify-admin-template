@@ -332,6 +332,7 @@ import { useOrderStore } from '@/stores/useOrderStore'
 
 // --- 0. TIPOS ---
 interface Cliente {
+  pkey?: string
   nombre: string
   apellido: string
   telefono: string

@@ -1,5 +1,6 @@
 export interface Customer {
   id: string
+  pkey?: string
   nombre: string
   apellido: string
   telefono: string
